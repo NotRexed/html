@@ -1,14 +1,105 @@
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no" />
-</head>
-<body>
-<script src="https://cdn.jsdelivr.net/gh/u-cvlassrom-y/google@main/ruffle.js"></script>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <title>Stronger Than You</title>
 
-<object width="100%" height="100%">
-    <param name="movie" value="https://cdn.jsdelivr.net/gh/genizy/google-class@main/impossiblequiz.swf">
-    <embed src="https://cdn.jsdelivr.net/gh/genizy/google-class@main/impossiblequiz.swf" width="100%" height="100%">
+    <!-- Make all files load from jsDelivr -->
+    <base href="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/Stronger-Than-You-Game/">
+
+    <!-- Standardised web app manifest -->
+    <link rel="manifest" href="appmanifest.json" />
+
+    <!-- Mobile & fullscreen settings -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, minimal-ui" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <link rel="apple-touch-icon" sizes="256x256" href="icon-256.png" />
+    <meta name="HandheldFriendly" content="true" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="shortcut icon" sizes="256x256" href="icon-256.png" />
+
+    <style>
+        * { padding: 0; margin: 0; }
+        html, body {
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            touch-action: none;
+        }
+        canvas {
+            touch-action: none;
+        }
+    </style>
+</head>
+
+<script>
+(function () {
+    const OriginalImage = window.Image;
+    window.Image = function (width, height) {
+        const img = new OriginalImage(width, height);
+        img.crossOrigin = "anonymous"; // <--- force CORS-safe
+        return img;
+    };
+    window.Image.prototype = OriginalImage.prototype;
+
+    // Also fix HTMLImageElement for images created dynamically
+    if (window.HTMLImageElement) {
+        const originalSetAttribute = HTMLImageElement.prototype.setAttribute;
+        HTMLImageElement.prototype.setAttribute = function (name, value) {
+            if (name === "src" && !this.crossOrigin) {
+                this.crossOrigin = "anonymous";
+            }
+            return originalSetAttribute.call(this, name, value);
+        };
+    }
+})();
+</script>
+
+
+<body>
+    <div id="c2canvasdiv">
+        <canvas id="c2canvas" width="960" height="560">
+            <h1>Your browser does not appear to support HTML5.</h1>
+        </canvas>
+    </div>
+
+    <!-- Load Construct 2 runtime + dependencies from jsDelivr -->
+    <script src="jquery-3.4.1.min.js"></script>
+    <script src="c2runtime.js"></script>
+
+    <script>
+        // Start the Construct 2 project running
+        jQuery(document).ready(function () {
+            cr_createRuntime("c2canvas");
+        });
+
+        // Pause/resume when tab visibility changes
+        function onVisibilityChanged() {
+            cr_setSuspended(document.hidden || document.mozHidden || document.webkitHidden || document.msHidden);
+        }
+
+        document.addEventListener("visibilitychange", onVisibilityChanged, false);
+        document.addEventListener("mozvisibilitychange", onVisibilityChanged, false);
+        document.addEventListener("webkitvisibilitychange", onVisibilityChanged, false);
+        document.addEventListener("msvisibilitychange", onVisibilityChanged, false);
+
+        // Offline caching (works with jsDelivr too)
+        function OnRegisterSWError(e) {
+            console.warn("Failed to register service worker: ", e);
+        }
+
+        window.C2_RegisterSW = function C2_RegisterSW() {
+            if (!navigator.serviceWorker) return;
+            try {
+                navigator.serviceWorker.register("sw.js", { scope: "./" })
+                    .then(reg => console.log("Registered service worker on " + reg.scope))
+                    .catch(OnRegisterSWError);
+            } catch (e) {
+                OnRegisterSWError(e);
+            }
+        };
+    </script>
 </body>
 </html>
