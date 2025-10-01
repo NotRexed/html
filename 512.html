@@ -1,39 +1,24 @@
 <!DOCTYPE html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8" />
-    <title>1v1 LOL - topVAZ #3</title>
-    <meta name="robots" content="noindex,nofollow" />
-
-    <!-- Load assets from GitHub via jsDelivr -->
-    <script src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/lib/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/js/IronSourceRV.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/js/mobileRedirect.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/js/fullscreen.js"></script>
-
-    <link rel="icon" type="image/png" href="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/favicon.png?v2" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/css/style.css" />
-
-    <!-- Unity Loader -->
-    <script id="unity-loader" src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/UnityLoader.js"></script>
-    <!-- If UnityProgress.js exists, include it here -->
-    <script src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/UnityProgress.js"></script>
-  </head>
-
-  <body>
-    <div id="gameContainer"></div>
-    <div id="loader">
-      <img class="logo" src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/logo.png" />
-      <div class="spinner"></div>
-      <div class="progress">
-        <div class="full"></div>
-      </div>
-    </div>
-
-    <script>
-      var gameJsonUrl = "https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/WebGL.json";
-      var gameInstance = UnityLoader.instantiate("gameContainer", gameJsonUrl, { onProgress: UnityProgress });
-      window.unityInstance = gameInstance;
-    </script>
-  </body>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>1v1.LoL</title>
+    <style>
+        * { padding: 0; margin: 0; }
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <iframe src="https://togagames.netlify.app/" allowfullscreen></iframe>
+</body>
 </html>
