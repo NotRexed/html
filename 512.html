@@ -1,26 +1,39 @@
-<html>
-<base href="https://cdn.jsdelivr.net/gh/bubbls/UGS-Assets@main/final%20earth%202/">
-<head>
-  <title>The Final Earth 2</title>
-  <meta charset="utf-8" />
-  <meta name="author" content="Florian van Strien"> 
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <link rel="stylesheet" type="text/css" href="style.css" />
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default"> 
-  <link rel="apple-touch-icon" href="icons/apple_touch_icon.png">
-  <link rel="icon" type="image/png" href="icons/favicon.png">
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <title>1v1 LOL - topVAZ #3</title>
+    <meta name="robots" content="noindex,nofollow" />
 
-  <meta name="mobile-web-app-capable" content="yes">
-</head>
+    <!-- Load assets from GitHub via jsDelivr -->
+    <script src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/lib/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/js/IronSourceRV.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/js/mobileRedirect.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/js/fullscreen.js"></script>
 
-<body>
-  <noscript>You need to have JavaScript enabled to play The Final Earth 2! Please enable it in your browser and disable any script blocker.</noscript>
-  <!--[if lte IE 9]>
-    <p style="color:white; font-size:20px;">You're using a very old browser! The game won't work. Please use something a bit more modern.</p>
-    <![endif]-->
-  <input type="file" id="importFile" style="opacity:0;position:absolute;left:-9990px;top:0px;" />
-  <script src="js/preloader.js"></script>
-</body>
+    <link rel="icon" type="image/png" href="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/favicon.png?v2" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/css/style.css" />
 
+    <!-- Unity Loader -->
+    <script id="unity-loader" src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/UnityLoader.js"></script>
+    <!-- If UnityProgress.js exists, include it here -->
+    <script src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/UnityProgress.js"></script>
+  </head>
+
+  <body>
+    <div id="gameContainer"></div>
+    <div id="loader">
+      <img class="logo" src="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/logo.png" />
+      <div class="spinner"></div>
+      <div class="progress">
+        <div class="full"></div>
+      </div>
+    </div>
+
+    <script>
+      var gameJsonUrl = "https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/1v1Lol/WebGL.json";
+      var gameInstance = UnityLoader.instantiate("gameContainer", gameJsonUrl, { onProgress: UnityProgress });
+      window.unityInstance = gameInstance;
+    </script>
+  </body>
 </html>
