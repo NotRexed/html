@@ -1,59 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>UNDERTALE</title>
+<meta charset="UTF-8">
+<title>UNDERTALE</title>
 
-    <!-- CDN base -->
-    <base href="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/undertale/">
+<base href="https://cdn.jsdelivr.net/gh/NotRexed/Unblocked-Games@main/undertale/">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <link rel="icon" href="favicon.ico">
-
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            background: black;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            touch-action: none;
-        }
-
-        canvas {
-            display: block;
-            margin: auto;
-            touch-action: none;
-        }
-    </style>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    background: black;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+#gm4html5_div_id {
+    width: 100%;
+    height: 100%;
+}
+</style>
 </head>
 
 <body>
 
-<!-- ⚠️ ID MUST BE "canvas" FOR GMS1 -->
-<canvas id="canvas" width="640" height="480">
-    Your browser does not support HTML5.
-</canvas>
+<!-- ⚠️ REQUIRED wrapper div -->
+<div id="gm4html5_div_id"></div>
 
 <script>
-/* ---- Fix CORS for CDN texture/audio loading ---- */
+/* ---- REQUIRED GM globals ---- */
+var gml_Script_gmcallback_html5_draw = function(){};
+var gml_Script_gmcallback_html5_step = function(){};
+var gml_Script_gmcallback_html5_pause = function(){};
+var gml_Script_gmcallback_html5_resume = function(){};
+
+/* ---- CORS fix ---- */
 (function () {
-    const OrigImage = window.Image;
+    const OI = window.Image;
     window.Image = function (w, h) {
-        const img = new OrigImage(w, h);
-        img.crossOrigin = "anonymous";
-        return img;
+        const i = new OI(w, h);
+        i.crossOrigin = "anonymous";
+        return i;
     };
-    window.Image.prototype = OrigImage.prototype;
+    window.Image.prototype = OI.prototype;
 })();
 </script>
 
-<!-- ✅ GAME ENTRY POINT -->
+<!-- ✅ THIS FILE CREATES THE CANVAS -->
 <script src="html5game/bvjRNMha.com.js"></script>
 
 </body>
