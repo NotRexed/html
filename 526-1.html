@@ -7,22 +7,48 @@
   <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
   <title>Dice a Million</title>
   <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body {
-    width: 100%; height: 100%;
-    background: #000;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-</style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+    #canvas { position: fixed; top: 0; left: 0; transform-origin: top left; }
+  </style>
 </head>
 <body>
   <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
 
   <script>
-  // Merge mus.dat parts
+  const canvas = document.getElementById('canvas');
+
+  // Block the game from setting width/height via style
+  const origSetProperty = canvas.style.setProperty.bind(canvas.style);
+  canvas.style.setProperty = function(prop, val, priority) {
+    if (prop === 'width' || prop === 'height') return;
+    return origSetProperty(prop, val, priority);
+  };
+
+  // Also block direct style.width / style.height assignments
+  ['width', 'height'].forEach(prop => {
+    Object.defineProperty(canvas.style, prop, {
+      set: function() {},
+      get: function() { return ''; },
+      configurable: true
+    });
+  });
+
+  function scaleCanvas() {
+    const cw = canvas.width;
+    const ch = canvas.height;
+    if (!cw || !ch) return;
+    const scaleX = window.innerWidth / cw;
+    const scaleY = window.innerHeight / ch;
+    canvas.style.transform = `scale(${scaleX}, ${scaleY})`;
+  }
+
+  new MutationObserver(scaleCanvas).observe(canvas, { attributes: true, attributeFilter: ['width', 'height'] });
+  window.addEventListener('resize', scaleCanvas);
+  setInterval(scaleCanvas, 200);
+  </script>
+
+  <script>
   const _open = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url, ...args) {
     if (typeof url === 'string' && url.includes('mus.dat')) {
