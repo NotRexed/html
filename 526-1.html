@@ -18,14 +18,12 @@
   <script>
   const canvas = document.getElementById('canvas');
 
-  // Block the game from setting width/height via style
   const origSetProperty = canvas.style.setProperty.bind(canvas.style);
   canvas.style.setProperty = function(prop, val, priority) {
     if (prop === 'width' || prop === 'height') return;
     return origSetProperty(prop, val, priority);
   };
 
-  // Also block direct style.width / style.height assignments
   ['width', 'height'].forEach(prop => {
     Object.defineProperty(canvas.style, prop, {
       set: function() {},
