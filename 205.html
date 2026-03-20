@@ -1,144 +1,401 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <base href="https://cdn.jsdelivr.net/gh/genizy/web-port@main/buckshot-roulette/index.html">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
     <title>Buckshot Roulette</title>
-    <link rel="stylesheet" href="style.css">
-    <link id="-gd-engine-icon" rel="icon" type="image/png" href="buckshot-roulette.icon.png" />
-    <link rel="apple-touch-icon" href="buckshot-roulette.apple-touch-icon.png" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; background: #000; overflow: hidden; color: #fff; font-family: 'Courier New', monospace; }
+        #canvas { display: block; width: 100%; height: 100%; }
+        #canvas:focus { outline: none; }
+        #loader {
+            position: fixed; inset: 0; background: #000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+            z-index: 9999;
+        }
+        
+        #bar-wrap { width: 300px; height: 3px; background: #222; border-radius: 2px; overflow: hidden; }
+        #bar { height: 100%; width: 0%; background: #fff; transition: width 0.1s; }
+        #pct { font-size: 16px; color: #ccc; letter-spacing: 2px; font-weight: bold; }
+        #msg { font-size: 15px; color: #aaa; letter-spacing: 2px; }
+        #status { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; visibility: hidden; }
+        #status-progress { width: 50%; display: none; }
+        #status-notice { display: none; background: #5b3943; border-radius: 4px; border: 1px solid #9b3943; color: #e0e0e0; padding: 1rem; text-align: center; margin: 0 2rem; }
+    </style>
 </head>
-
 <body>
-    <script src="main.js"></script>
-    <div id="loading-text" style="color: white; font-family: cursive; font-size: 48px; text-align: center; margin-top: 20px;">LOADING...</div>
-    <canvas id="canvas"> Your browser does not support the canvas tag. </canvas>
-    <noscript> Your browser does not support JavaScript. </noscript>
-    <div id="status">
-        <img id="status-splash" class="show-image--true fullsize--true use-filter--true" src="buckshot-roulette.png" alt="">
-        <progress id="status-progress"></progress>
-        <div id="status-notice"></div>
-    </div>
-    <script src="buckshot-roulette.js"></script>
-    <script>
-        const GODOT_CONFIG = {
-            "args": [],
-            "canvasResizePolicy": 2,
-            "ensureCrossOriginIsolationHeaders": false,
-            "executable": "buckshot-roulette",
-            "experimentalVK": false,
-            "fileSizes": {
-                "buckshot-roulette.pck": 344705792,
-                "buckshot-roulette.wasm": 43444261
+
+<div id="loader">
+    <img src="https://cdn.jsdelivr.net/gh/NotRexed/BuckshotRouletteMultiplayer/Buckshot%20Roulette.png" style="max-width:600px;max-height:400px;object-fit:contain;">
+    <div id="bar-wrap"><div id="bar"></div></div>
+    <div id="pct">0%</div>
+    <div id="msg">INITIALIZING...</div>
+</div>
+
+<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
+<div id="status">
+    <progress id="status-progress"></progress>
+    <div id="status-notice"></div>
+</div>
+
+<script>
+// ── CHANGE THESE TWO LINES ────────────────────────────────────────────────────
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+var BASE      = 'https://cdn.jsdelivr.net/gh/NotRexed/BuckshotRouletteMultiplayer/';
+var PCK_PARTS  = 38;
+var WASM_PARTS = 2;
+
+var bar = document.getElementById('bar');
+var pct = document.getElementById('pct');
+var msg = document.getElementById('msg');
+
+var totalParts = PCK_PARTS + WASM_PARTS;
+var loaded = 0;
+var loadedBytes = 0;
+var TOTAL_MB = 754;
+
+function setMsg(t) { msg.textContent = t; }
+function tick(byteSize) {
+    loaded++;
+    loadedBytes += byteSize;
+    var doneMB = (loadedBytes / 1048576).toFixed(0);
+    var p = Math.round((loaded / totalParts) * 90); // 90% for parts, 10% for engine
+    bar.style.width = p + '%';
+    pct.textContent = p + '% — ' + doneMB + ' / ' + TOTAL_MB + ' MB';
+}
+
+function fetchBuf(url) {
+    return fetch(url).then(function(r) {
+        if (!r.ok) throw new Error('Could not fetch: ' + url);
+        return r.arrayBuffer();
+    });
+}
+
+function mergeParts(name, total, zeroPad) {
+    var bufs = [];
+    function next(i) {
+        if (i > total) return Promise.resolve(new Blob(bufs));
+        var num = (zeroPad && i < 10) ? '0' + i : '' + i;
+        var url = BASE + encodeURIComponent(name) + '.part' + num;
+        return fetchBuf(url).then(function(b) {
+            bufs.push(b);
+            tick(b.byteLength);
+            setMsg('LOADING ' + name.split(' ').pop().split('.')[1].toUpperCase() + ' \u2014 PART ' + i + ' / ' + total);
+            return next(i + 1);
+        });
+    }
+    return next(1);
+}
+
+// Fetch both in parallel
+Promise.all([
+    mergeParts('Buckshot Roulette.pck',  PCK_PARTS,  true),
+    mergeParts('Buckshot Roulette.wasm', WASM_PARTS, false)
+]).then(function(blobs) {
+    var pckUrl  = URL.createObjectURL(blobs[0]);
+    var wasmUrl = URL.createObjectURL(blobs[1]);
+
+    setMsg('LOADING ENGINE...');
+    bar.style.width = '92%';
+    pct.textContent = '92%';
+
+    // Load Godot JS engine as a script
+    // Patch AudioWorklet.addModule to redirect worklet files to jsDelivr
+    var _origAddModule = AudioWorklet.prototype.addModule;
+    AudioWorklet.prototype.addModule = function(url, options) {
+        if (typeof url === 'string' && url.indexOf('Buckshot Roulette.') !== -1) {
+            var filename = url.split('/').pop();
+            url = BASE + encodeURIComponent(filename);
+        }
+        return _origAddModule.call(this, url, options);
+    };
+
+    // Patch AudioContext before Godot's engine script loads so it starts unlocked
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) {
+        var _OrigAC = AC;
+        var PatchedAC = function() {
+            var ctx = new _OrigAC();
+            ctx.resume();
+            return ctx;
+        };
+        PatchedAC.prototype = _OrigAC.prototype;
+        window.AudioContext = PatchedAC;
+        window.webkitAudioContext = PatchedAC;
+    }
+    var script = document.createElement('script');
+    script.src = BASE + 'Buckshot%20Roulette.js';
+    script.onload = function() {
+        bar.style.width = '96%';
+        pct.textContent = '96%';
+        setMsg('STARTING GAME...');
+
+        // Patch fetch to redirect pck/wasm to our blobs
+        var _orig = window.fetch;
+        window.fetch = function(url) {
+            var rest = Array.prototype.slice.call(arguments, 1);
+            if (typeof url === 'string') {
+                if (url.indexOf('Buckshot Roulette.pck')  !== -1) return _orig.apply(window, [pckUrl].concat(rest));
+                if (url.indexOf('Buckshot Roulette.wasm') !== -1) return _orig.apply(window, [wasmUrl].concat(rest));
+                // Redirect audio worklets and any other game files to jsDelivr
+                if (url.indexOf('Buckshot Roulette.') !== -1) {
+                    var filename = url.split('/').pop();
+                    return _orig.apply(window, [BASE + filename].concat(rest));
+                }
+            }
+            return _orig.apply(window, arguments);
+        };
+
+        var GODOT_CONFIG = {
+            args: [],
+            canvasResizePolicy: 2,
+            emscriptenPoolSize: 8,
+            ensureCrossOriginIsolationHeaders: false,
+            executable: 'Buckshot Roulette',
+            experimentalVK: false,
+            fileSizes: {
+                'Buckshot Roulette.pck':  720811064,
+                'Buckshot Roulette.wasm': 35739700
             },
-            "focusCanvas": false,
-            "gdextensionLibs": []
+            focusCanvas: true,
+            gdextensionLibs: []
         };
-        const GODOT_THREADS_ENABLED = false;
-        const engine = new Engine(GODOT_CONFIG);
 
-        function run() {
-            const loadingText = document.getElementById('loading-text');
-            const statusOverlay = document.getElementById('status');
-            const statusProgress = document.getElementById('status-progress');
-            const statusNotice = document.getElementById('status-notice');
-            loadingText.remove();
-            let initializing = true;
-            let statusMode = '';
+        var engine = new Engine(GODOT_CONFIG);
 
-            function setStatusMode(mode) {
-                if (statusMode === mode || !initializing) {
-                    return;
-                }
-                if (mode === 'hidden') {
-                    statusOverlay.remove();
-                    initializing = false;
-                    return;
-                }
-                statusOverlay.style.visibility = 'visible';
-                statusProgress.style.display = mode === 'progress' ? 'block' : 'none';
-                statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
-                statusMode = mode;
-            }
+        var statusOverlay   = document.getElementById('status');
+        var statusProgress  = document.getElementById('status-progress');
+        var statusNotice    = document.getElementById('status-notice');
+        var initializing    = true;
+        var statusMode      = '';
 
-            function setStatusNotice(text) {
-                while (statusNotice.lastChild) {
-                    statusNotice.removeChild(statusNotice.lastChild);
-                }
-                const lines = text.split('\n');
-                lines.forEach((line) => {
-                    statusNotice.appendChild(document.createTextNode(line));
-                    statusNotice.appendChild(document.createElement('br'));
-                });
-            }
-
-            function displayFailureNotice(err) {
-                console.error(err);
-                if (err instanceof Error) {
-                    setStatusNotice(err.message);
-                } else if (typeof err === 'string') {
-                    setStatusNotice(err);
-                } else {
-                    setStatusNotice('An unknown error occurred.');
-                }
-                setStatusMode('notice');
+        function setStatusMode(mode) {
+            if (statusMode === mode || !initializing) return;
+            if (mode === 'hidden') {
+                statusOverlay.remove();
                 initializing = false;
-            }
-            const missing = Engine.getMissingFeatures({
-                threads: GODOT_THREADS_ENABLED,
-            });
-            if (missing.length !== 0) {
-                if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
-                    let serviceWorkerRegistrationPromise;
-                    try {
-                        serviceWorkerRegistrationPromise = navigator.serviceWorker.getRegistration();
-                    } catch (err) {
-                        serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
-                    }
-                    // There's a chance that installing the service worker would fix the issue
-                    Promise.race([
-                        serviceWorkerRegistrationPromise.then((registration) => {
-                            if (registration != null) {
-                                return Promise.reject(new Error('Service worker already exists.'));
-                            }
-                            return registration;
-                        }).then(() => engine.installServiceWorker()),
-                        // For some reason, `getRegistration()` can stall
-                        new Promise((resolve) => {
-                            setTimeout(() => resolve(), 2000);
-                        }),
-                    ]).then(() => {
-                        // Reload if there was no error.
-                        window.location.reload();
-                    }).catch((err) => {
-                        console.error('Error while registering service worker:', err);
-                    });
-                } else {
-                    // Display the message as usual
-                    const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
-                    displayFailureNotice(missingMsg + missing.join('\n'));
-                }
-            } else {
-                setStatusMode('progress');
-                engine.startGame({
-                    'onProgress': function (current, total) {
-                        if (current > 0 && total > 0) {
-                            statusProgress.value = current;
-                            statusProgress.max = total;
-                        } else {
-                            statusProgress.removeAttribute('value');
-                            statusProgress.removeAttribute('max');
-                        }
-                    },
-                }).then(() => {
-                    setStatusMode('hidden');
-                }, displayFailureNotice);
-            }
-        };
-        window.godotRunStart = run;
-    </script>
-</body>
 
+                // Hide loader, game is running
+                var loaderEl = document.getElementById('loader');
+                if (loaderEl) {
+                    loaderEl.style.transition = 'opacity 0.4s';
+                    loaderEl.style.opacity = '0';
+                    setTimeout(function() { loaderEl.remove(); }, 400);
+                }
+                return;
+            }
+            statusOverlay.style.visibility = 'visible';
+            statusProgress.style.display = mode === 'progress' ? 'block' : 'none';
+            statusNotice.style.display   = mode === 'notice'   ? 'block' : 'none';
+            statusMode = mode;
+        }
+
+        function setStatusNotice(text) {
+            while (statusNotice.lastChild) statusNotice.removeChild(statusNotice.lastChild);
+            text.split('\n').forEach(function(line) {
+                statusNotice.appendChild(document.createTextNode(line));
+                statusNotice.appendChild(document.createElement('br'));
+            });
+        }
+
+        function displayFailure(err) {
+            console.error(err);
+            setStatusNotice(err instanceof Error ? err.message : typeof err === 'string' ? err : 'An unknown error occurred.');
+            setStatusMode('notice');
+            initializing = false;
+        }
+
+        var missing = Engine.getMissingFeatures({ threads: false });
+        if (missing.length !== 0) {
+            displayFailure('Missing features:\n' + missing.join('\n'));
+            return;
+        }
+
+        setStatusMode('progress');
+        bar.style.width = '99%';
+        pct.textContent = '99%';
+
+        engine.startGame({
+            onProgress: function(current, total) {
+                if (current > 0 && total > 0) {
+                    statusProgress.value = current;
+                    statusProgress.max   = total;
+                } else {
+                    statusProgress.removeAttribute('value');
+                    statusProgress.removeAttribute('max');
+                }
+            }
+        }).then(function() {
+            setStatusMode('hidden');
+        }, displayFailure);
+    };
+
+    script.onerror = function() {
+        setMsg('ERROR: Could not load engine JS. Check your repo name.');
+        bar.style.background = '#c00';
+    };
+
+    document.head.appendChild(script);
+
+}).catch(function(err) {
+    setMsg('ERROR: ' + (err.message || String(err)));
+    bar.style.background = '#c00';
+    console.error(err);
+});
+</script>
+
+<!-- PeerJS -->
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+<!-- Firebase lobby cleanup on tab close -->
+<script>
+var FIREBASE_LOBBY_URL = 'https://buckshot-lobby-search-default-rtdb.firebaseio.com';
+window._godot_lobby_id_to_cleanup = '';
+window.addEventListener('beforeunload', function() {
+    try { window.PeerBridge.destroyPeer(); } catch(e) {}
+    var id = window._godot_lobby_id_to_cleanup || '';
+    if (id !== '') {
+        var url = FIREBASE_LOBBY_URL + '/lobbies/' + id + '.json';
+        navigator.sendBeacon(url + '?method=DELETE', '');
+        try { fetch(url, { method: 'DELETE', keepalive: true }); } catch(e) {}
+    }
+});
+</script>
+
+<!-- PeerBridge (copied from your Buckshot Roulette.html) -->
+<script>
+window.PeerBridge = (function() {
+  var peer = null, connections = {}, incomingQueue = [], myId = null, locked = false, connectionTimeouts = {};
+
+  function init(desiredId) {
+    if (peer && !peer.destroyed) { window._godot_peer_id = peer.id; return Promise.resolve(peer.id); }
+    if (locked) return Promise.resolve(myId || '');
+    return new Promise(function(resolve) {
+      var peerConfig = {
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'turn:openrelay.metered.ca:80',               username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+          ]
+        }
+      };
+      peer = desiredId ? new Peer(desiredId, peerConfig) : new Peer(peerConfig);
+      peer.on('open', function(id) {
+        myId = id; window._godot_peer_id = id;
+        console.log('[PeerBridge] My peer ID:', id);
+        startKeepalive(); resolve(id);
+      });
+      peer.on('connection', function(conn) { _setupConnection(conn); });
+      peer.on('error', function(err) {
+        var m = err.message || String(err);
+        if (m.indexOf('Could not connect to peer') !== -1 || err.type === 'peer-unavailable') {
+          window._godot_lobby_join_error = 'Lobby not found or host has left.';
+        }
+        incomingQueue.push(JSON.stringify({ _bridge_event: 'error', message: m }));
+      });
+    });
+  }
+
+  function connectTo(hostId, myName) {
+    return new Promise(function(resolve, reject) {
+      if (!peer) { reject('PeerBridge not initialized'); return; }
+      var timeout = setTimeout(function() {
+        window._godot_lobby_join_error = 'Connection timed out.';
+        reject('Connection timed out');
+      }, 8000);
+      connectionTimeouts[hostId] = timeout;
+      var conn = peer.connect(hostId, { reliable: true, metadata: { name: myName } });
+      conn.on('open', function() {
+        clearTimeout(connectionTimeouts[hostId]); delete connectionTimeouts[hostId];
+        _setupConnection(conn); resolve(hostId);
+      });
+      conn.on('error', function(err) {
+        clearTimeout(connectionTimeouts[hostId]); delete connectionTimeouts[hostId];
+        window._godot_lobby_join_error = 'Connection failed: ' + (err.message || String(err));
+        reject(err);
+      });
+    });
+  }
+
+  function _setupConnection(conn) {
+    connections[conn.peer] = conn;
+    conn.on('data', function(data) {
+      incomingQueue.push(JSON.stringify({ _bridge_event: 'data', from: conn.peer, from_name: conn.metadata ? conn.metadata.name : '', data: data }));
+    });
+    conn.on('close', function() {
+      delete connections[conn.peer];
+      incomingQueue.push(JSON.stringify({ _bridge_event: 'disconnect', peer_id: conn.peer }));
+    });
+    conn.on('error', function(err) { console.error('[PeerBridge] Conn error', err); });
+    incomingQueue.push(JSON.stringify({ _bridge_event: 'connected', peer_id: conn.peer, peer_name: conn.metadata ? conn.metadata.name : '' }));
+  }
+
+  function sendTo(peerId, dataObj) {
+    if (connections[peerId]) { connections[peerId].send(dataObj); return true; }
+    return false;
+  }
+  function sendToAll(dataObj) { for (var id in connections) connections[id].send(dataObj); }
+  function pollPacket() { return incomingQueue.length > 0 ? incomingQueue.shift() : ''; }
+  function disconnect(peerId) { if (connections[peerId]) { connections[peerId].close(); delete connections[peerId]; } }
+  function destroyPeer() {
+    if (locked) return;
+    if (peer) { peer.destroy(); peer = null; connections = {}; myId = null; }
+  }
+  function startKeepalive() {
+    setInterval(function() {
+      for (var id in connections) { try { if (connections[id].open) connections[id].send({ _keepalive: true }); } catch(e) {} }
+    }, 1000);
+  }
+  function clearQueue() { incomingQueue = []; }
+  function lockPeer()   { locked = true; }
+  function unlockPeer() { locked = false; }
+  function getMyId()    { return myId || ''; }
+  function getConnectedPeers() { return Object.keys(connections); }
+  function isAlive()    { return !!(peer && !peer.destroyed); }
+
+  return { init, connectTo, sendTo, sendToAll, pollPacket, disconnect, destroyPeer, clearQueue, lockPeer, unlockPeer, getMyId, getConnectedPeers, isAlive };
+})();
+</script>
+
+<script>
+// Resume ALL AudioContexts on the page including Godot's internal one
+function unlockAudio() {
+    // Resume any existing AudioContext instances
+    if (window.AudioContext || window.webkitAudioContext) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        // Patch the constructor so any future AudioContext Godot creates starts unlocked
+        var _orig = AC;
+        window.AudioContext = window.webkitAudioContext = function() {
+            var ctx = new _orig();
+            ctx.resume();
+            return ctx;
+        };
+        window.AudioContext.prototype = _orig.prototype;
+    }
+    // Also poll for any AudioContext that gets created after this fires
+    var interval = setInterval(function() {
+        var contexts = [];
+        // Try to find Godot's audio context via Module
+        if (window.Module && window.Module.SDL2 && window.Module.SDL2.audioContext) {
+            window.Module.SDL2.audioContext.resume();
+        }
+        if (window.Module && window.Module.audioContext) {
+            window.Module.audioContext.resume();
+        }
+    }, 500);
+    // Stop polling after 30 seconds
+    setTimeout(function() { clearInterval(interval); }, 30000);
+}
+document.addEventListener('click', unlockAudio, { once: true });
+document.addEventListener('keydown', unlockAudio, { once: true });
+</script>
+
+</body>
 </html>
