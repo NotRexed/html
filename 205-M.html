@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -14,7 +15,6 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
             z-index: 9999;
         }
-        
         #bar-wrap { width: 300px; height: 3px; background: #222; border-radius: 2px; overflow: hidden; }
         #bar { height: 100%; width: 0%; background: #fff; transition: width 0.1s; }
         #pct { font-size: 16px; color: #ccc; letter-spacing: 2px; font-weight: bold; }
@@ -34,17 +34,13 @@
 </div>
 
 <canvas id="canvas">Your browser does not support the canvas tag.</canvas>
+
 <div id="status">
     <progress id="status-progress"></progress>
     <div id="status-notice"></div>
 </div>
 
 <script>
-// ── CHANGE THESE TWO LINES ────────────────────────────────────────────────────
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-
 var BASE      = 'https://cdn.jsdelivr.net/gh/NotRexed/BuckshotRouletteMultiplayer/';
 var PCK_PARTS  = 38;
 var WASM_PARTS = 2;
@@ -63,7 +59,7 @@ function tick(byteSize) {
     loaded++;
     loadedBytes += byteSize;
     var doneMB = (loadedBytes / 1048576).toFixed(0);
-    var p = Math.round((loaded / totalParts) * 90); // 90% for parts, 10% for engine
+    var p = Math.round((loaded / totalParts) * 90);
     bar.style.width = p + '%';
     pct.textContent = p + '% — ' + doneMB + ' / ' + TOTAL_MB + ' MB';
 }
@@ -91,7 +87,6 @@ function mergeParts(name, total, zeroPad) {
     return next(1);
 }
 
-// Fetch both in parallel
 Promise.all([
     mergeParts('Buckshot Roulette.pck',  PCK_PARTS,  true),
     mergeParts('Buckshot Roulette.wasm', WASM_PARTS, false)
@@ -103,30 +98,6 @@ Promise.all([
     bar.style.width = '92%';
     pct.textContent = '92%';
 
-    // Load Godot JS engine as a script
-    // Patch AudioWorklet.addModule to redirect worklet files to jsDelivr
-    var _origAddModule = AudioWorklet.prototype.addModule;
-    AudioWorklet.prototype.addModule = function(url, options) {
-        if (typeof url === 'string' && url.indexOf('Buckshot Roulette.') !== -1) {
-            var filename = url.split('/').pop();
-            url = BASE + encodeURIComponent(filename);
-        }
-        return _origAddModule.call(this, url, options);
-    };
-
-    // Patch AudioContext before Godot's engine script loads so it starts unlocked
-    var AC = window.AudioContext || window.webkitAudioContext;
-    if (AC) {
-        var _OrigAC = AC;
-        var PatchedAC = function() {
-            var ctx = new _OrigAC();
-            ctx.resume();
-            return ctx;
-        };
-        PatchedAC.prototype = _OrigAC.prototype;
-        window.AudioContext = PatchedAC;
-        window.webkitAudioContext = PatchedAC;
-    }
     var script = document.createElement('script');
     script.src = BASE + 'Buckshot%20Roulette.js';
     script.onload = function() {
@@ -134,14 +105,12 @@ Promise.all([
         pct.textContent = '96%';
         setMsg('STARTING GAME...');
 
-        // Patch fetch to redirect pck/wasm to our blobs
         var _orig = window.fetch;
         window.fetch = function(url) {
             var rest = Array.prototype.slice.call(arguments, 1);
             if (typeof url === 'string') {
                 if (url.indexOf('Buckshot Roulette.pck')  !== -1) return _orig.apply(window, [pckUrl].concat(rest));
                 if (url.indexOf('Buckshot Roulette.wasm') !== -1) return _orig.apply(window, [wasmUrl].concat(rest));
-                // Redirect audio worklets and any other game files to jsDelivr
                 if (url.indexOf('Buckshot Roulette.') !== -1) {
                     var filename = url.split('/').pop();
                     return _orig.apply(window, [BASE + filename].concat(rest));
@@ -178,8 +147,6 @@ Promise.all([
             if (mode === 'hidden') {
                 statusOverlay.remove();
                 initializing = false;
-
-                // Hide loader, game is running
                 var loaderEl = document.getElementById('loader');
                 if (loaderEl) {
                     loaderEl.style.transition = 'opacity 0.4s';
@@ -249,9 +216,11 @@ Promise.all([
 </script>
 
 <!-- PeerJS -->
+
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
 <!-- Firebase lobby cleanup on tab close -->
+
 <script>
 var FIREBASE_LOBBY_URL = 'https://buckshot-lobby-search-default-rtdb.firebaseio.com';
 window._godot_lobby_id_to_cleanup = '';
@@ -266,7 +235,8 @@ window.addEventListener('beforeunload', function() {
 });
 </script>
 
-<!-- PeerBridge (copied from your Buckshot Roulette.html) -->
+<!-- PeerBridge -->
+
 <script>
 window.PeerBridge = (function() {
   var peer = null, connections = {}, incomingQueue = [], myId = null, locked = false, connectionTimeouts = {};
@@ -362,39 +332,6 @@ window.PeerBridge = (function() {
 
   return { init, connectTo, sendTo, sendToAll, pollPacket, disconnect, destroyPeer, clearQueue, lockPeer, unlockPeer, getMyId, getConnectedPeers, isAlive };
 })();
-</script>
-
-<script>
-// Resume ALL AudioContexts on the page including Godot's internal one
-function unlockAudio() {
-    // Resume any existing AudioContext instances
-    if (window.AudioContext || window.webkitAudioContext) {
-        var AC = window.AudioContext || window.webkitAudioContext;
-        // Patch the constructor so any future AudioContext Godot creates starts unlocked
-        var _orig = AC;
-        window.AudioContext = window.webkitAudioContext = function() {
-            var ctx = new _orig();
-            ctx.resume();
-            return ctx;
-        };
-        window.AudioContext.prototype = _orig.prototype;
-    }
-    // Also poll for any AudioContext that gets created after this fires
-    var interval = setInterval(function() {
-        var contexts = [];
-        // Try to find Godot's audio context via Module
-        if (window.Module && window.Module.SDL2 && window.Module.SDL2.audioContext) {
-            window.Module.SDL2.audioContext.resume();
-        }
-        if (window.Module && window.Module.audioContext) {
-            window.Module.audioContext.resume();
-        }
-    }, 500);
-    // Stop polling after 30 seconds
-    setTimeout(function() { clearInterval(interval); }, 30000);
-}
-document.addEventListener('click', unlockAudio, { once: true });
-document.addEventListener('keydown', unlockAudio, { once: true });
 </script>
 
 </body>
