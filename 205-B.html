@@ -27,7 +27,7 @@
 <body>
 
 <div id="loader">
-    <img src="https://cdn.jsdelivr.net/gh/NotRexed/BuckshotRouletteMultiplayer/Buckshot%20Roulette.png" style="max-width:600px;max-height:400px;object-fit:contain;">
+    <img src="https://cdn.jsdelivr.net/gh/NotRexed/buckshot13/Buckshot%20Roulette.png" style="max-width:600px;max-height:400px;object-fit:contain;">
     <div id="bar-wrap"><div id="bar"></div></div>
     <div id="pct">0%</div>
     <div id="msg">INITIALIZING...</div>
@@ -40,12 +40,7 @@
 </div>
 
 <script>
-// ── CHANGE THESE TWO LINES ────────────────────────────────────────────────────
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-var BASE      = 'https://cdn.jsdelivr.net/gh/NotRexed/BuckshotRouletteMultiplayer/';
+var BASE      = 'https://cdn.jsdelivr.net/gh/NotRexed/buckshot13/';
 var PCK_PARTS  = 50;
 var WASM_PARTS = 2;
 
@@ -158,7 +153,7 @@ Promise.all([
             executable: 'Buckshot Roulette',
             experimentalVK: false,
             fileSizes: {
-                'Buckshot Roulette.pck':  965988636,
+                'Buckshot Roulette.pck':  966067792,
                 'Buckshot Roulette.wasm': 35739700
             },
             focusCanvas: true,
@@ -280,9 +275,14 @@ window.PeerBridge = (function() {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'turn:openrelay.metered.ca:80',               username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+            { urls: 'stun:stun.relay.metered.ca:80' },
+            { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject',        credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject',        credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject',        credential: 'openrelayproject' },
+            { urls: 'turn:global.relay.metered.ca:80',             username: 'cd97b776b691e8ea3dfc2357', credential: 'PRXS06zMQ4lMXrQ/' },
+            { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: 'cd97b776b691e8ea3dfc2357', credential: 'PRXS06zMQ4lMXrQ/' },
+            { urls: 'turn:global.relay.metered.ca:443',            username: 'cd97b776b691e8ea3dfc2357', credential: 'PRXS06zMQ4lMXrQ/' },
+            { urls: 'turns:global.relay.metered.ca:443?transport=tcp', username: 'cd97b776b691e8ea3dfc2357', credential: 'PRXS06zMQ4lMXrQ/' }
           ]
         }
       };
@@ -325,7 +325,9 @@ window.PeerBridge = (function() {
   }
 
   function _setupConnection(conn) {
-    connections[conn.peer] = conn;
+    // Don't add to connections until the DataChannel is actually open.
+    // Adding it before open causes "Connection is not open" errors when
+    // Godot tries to send packets in the 1s handshake setTimeout.
     conn.on('data', function(data) {
       incomingQueue.push(JSON.stringify({ _bridge_event: 'data', from: conn.peer, from_name: conn.metadata ? conn.metadata.name : '', data: data }));
     });
@@ -334,14 +336,38 @@ window.PeerBridge = (function() {
       incomingQueue.push(JSON.stringify({ _bridge_event: 'disconnect', peer_id: conn.peer }));
     });
     conn.on('error', function(err) { console.error('[PeerBridge] Conn error', err); });
-    incomingQueue.push(JSON.stringify({ _bridge_event: 'connected', peer_id: conn.peer, peer_name: conn.metadata ? conn.metadata.name : '' }));
+    // Fire 'connected' only once the channel is open so Godot knows it's safe to send
+    if (conn.open) {
+      connections[conn.peer] = conn;
+      incomingQueue.push(JSON.stringify({ _bridge_event: 'connected', peer_id: conn.peer, peer_name: conn.metadata ? conn.metadata.name : '' }));
+    } else {
+      conn.once('open', function() {
+        connections[conn.peer] = conn;
+        incomingQueue.push(JSON.stringify({ _bridge_event: 'connected', peer_id: conn.peer, peer_name: conn.metadata ? conn.metadata.name : '' }));
+      });
+    }
   }
 
   function sendTo(peerId, dataObj) {
-    if (connections[peerId]) { connections[peerId].send(dataObj); return true; }
-    return false;
+    var conn = connections[peerId];
+    if (!conn) { console.warn('[PeerBridge] No connection to:', peerId); return false; }
+    if (conn.open) {
+      conn.send(dataObj); return true;
+    } else {
+      conn.once('open', function() { try { conn.send(dataObj); } catch(e) {} });
+      return true;
+    }
   }
-  function sendToAll(dataObj) { for (var id in connections) connections[id].send(dataObj); }
+  function sendToAll(dataObj) {
+    for (var id in connections) {
+      var conn = connections[id];
+      if (conn.open) {
+        try { conn.send(dataObj); } catch(e) {}
+      } else {
+        conn.once('open', function() { try { conn.send(dataObj); } catch(e) {} });
+      }
+    }
+  }
   function pollPacket() { return incomingQueue.length > 0 ? incomingQueue.shift() : ''; }
   function disconnect(peerId) { if (connections[peerId]) { connections[peerId].close(); delete connections[peerId]; } }
   function destroyPeer() {
